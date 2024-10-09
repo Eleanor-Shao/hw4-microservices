@@ -1,23 +1,25 @@
 package com.sa.web;
 
 import com.sa.web.dto.SentenceDto;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.kafka.core.KafkaTemplate;
+import com.sa.web.dto.SentimentDto;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.client.RestTemplate;
 
 @CrossOrigin(origins = "*")
 @RestController
 public class SentimentController {
 
-    @Autowired
-    private KafkaTemplate<String, SentenceDto> kafkaTemplate;
-
-    private static final String TOPIC = "webapp_to_logic";
+    @Value("${sa.logic.api.url}")
+    private String saLogicApiUrl;
 
     @PostMapping("/sentiment")
-    public String sentimentAnalysis(@RequestBody SentenceDto sentenceDto) {
-        kafkaTemplate.send(TOPIC, sentenceDto);  // Send the request to Kafka
-        return "Sentiment request sent to Kafka for processing: " + sentenceDto.getSentence();
+    public SentimentDto sentimentAnalysis(@RequestBody SentenceDto sentenceDto) {
+        RestTemplate restTemplate = new RestTemplate();
+
+        return restTemplate.postForEntity(saLogicApiUrl + "/analyse/sentiment",
+                sentenceDto, SentimentDto.class)
+                .getBody();
     }
 
     @GetMapping("/testHealth")

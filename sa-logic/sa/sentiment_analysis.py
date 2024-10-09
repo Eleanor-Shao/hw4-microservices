@@ -1,46 +1,18 @@
-from confluent_kafka import Consumer, Producer
-import json
-import os
+from textblob import TextBlob
+from flask import Flask, request, jsonify
 
-def create_kafka_consumer():
-    consumer_conf = {
-        'bootstrap.servers': os.getenv('KAFKA_BROKER'),
-        'group.id': 'logic-group',
-        'auto.offset.reset': 'earliest'
-    }
-    consumer = Consumer(consumer_conf)
-    consumer.subscribe(['webapp_to_logic'])
-    return consumer
+app = Flask(__name__)
 
-def create_kafka_producer():
-    producer_conf = {
-        'bootstrap.servers': os.getenv('KAFKA_BROKER'),
-    }
-    return Producer(producer_conf)
 
-def analyze_sentiment(text):
-    # Simple sentiment analysis logic (you can replace with actual logic)
-    return "Positive" if "good" in text else "Negative"
+@app.route("/analyse/sentiment", methods=['POST'])
+def analyse_sentiment():
+    sentence = request.get_json()['sentence']
+    polarity = TextBlob(sentence).sentences[0].polarity
+    return jsonify(
+        sentence=sentence,
+        polarity=polarity
+    )
 
-def main():
-    consumer = create_kafka_consumer()
-    producer = create_kafka_producer()
 
-    while True:
-        msg = consumer.poll(1.0)
-        if msg is None:
-            continue
-        if msg.error():
-            print(f"Error: {msg.error()}")
-            continue
-
-        request = msg.value().decode('utf-8')
-        result = analyze_sentiment(request)
-        print(f"Sentiment analysis result: {result}")
-
-        producer.produce('logic_to_webapp', value=result.encode('utf-8'))
-        producer.flush()
-
-if __name__ == "__main__":
-    main()
-
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=5000)
